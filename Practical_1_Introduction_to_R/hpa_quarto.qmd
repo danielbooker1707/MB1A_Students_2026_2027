@@ -1,0 +1,21 @@
+---
+title: "HPA Quarto document"
+author: "Daniel Booker"
+---
+We are looking for the mammal with the greatest number of regionally elevated genes in the forebrain.
+Human:
+```{r}
+elev_human <- sum(180, 83, 57, 110)
+print(paste("Humans have", elev_human, "elevated genes in the forebrain."))
+```
+Pig:
+```{r}
+elev_pig <- sum(109, 157, 31, 45)
+print(paste("Pigs have", elev_pig, "elevated genes in the forebrain."))
+```
+Mouse:
+```{r}
+elev_mouse <- sum(55, 185, 60, 98)
+print(paste("Mice have", elev_mouse, "elevated genes in the forebrain."))
+```
+So humans have the most elevated genes in the forebrain.
