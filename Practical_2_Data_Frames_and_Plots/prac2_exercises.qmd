@@ -1,0 +1,39 @@
+---
+title: "prac2_exercises.qmd"
+---
+Using the pipe operator
+```{r}
+my_numbers <- c(2, 4, 6, 8)
+print(sum(my_numbers)) 
+#View sum of numbers in the vector
+
+my_numbers|>sum()
+#Pipe operator passes values on its left into the function on its right
+
+print(my_numbers |> sum() |> sqrt())
+#Sum then square root
+
+print(my_numbers |> sum() |> sqrt() |> round())
+#Sum, square root then round to nearest integer (remember weird rules)
+
+my_result <- my_numbers |> sum() |> sqrt() |> round()
+print(my_result)
+
+input_vec <- c(5, -10, 4, -3)
+output_result <- input_vec |> mean() |> abs() |> round()
+print
+#Practice problem
+```
+
+Comparison operators
+```{r}
+y <- 12
+print(y == 7)
+print(y < 15)
+print(y > 20)
+print(y <= 12)
+
+#Practising use of comparison operators
+```
+
+

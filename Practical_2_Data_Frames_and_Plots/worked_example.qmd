@@ -1,0 +1,99 @@
+---
+title: "worked_example.qmd"
+---
+Exercise 1 - examining the first CSV file
+```{r}
+library(gt)
+library(tidyverse)
+library(maps)
+
+bird_breeding_sites <- read_csv("data/breeding_site_locations.csv")
+#Read csv file with breeding site location data
+
+gt(bird_breeding_sites)
+#Show csv file as a data frame
+
+colnames(bird_breeding_sites)
+#View column names
+
+glimpse(bird_breeding_sites)
+#View data frame summary
+
+print(nrow(bird_breeding_sites))
+#Print number of rows
+
+print(ncol(bird_breeding_sites))
+#Print number of columns
+
+print(dim(bird_breeding_sites))
+#Print both dimensions
+```
+
+Exercise 2 - read second CSV file
+```{r}
+bird_migration_sites <- read_csv("data/migratory_connectivity_dataset.csv")
+#Read csv file with migration data
+
+gt(head(bird_migration_sites))
+#Show top 10 rows of the file as a data frame
+
+glimpse(bird_migration_sites)
+#View summary
+
+colnames(bird_migration_sites)
+#View column name 
+```
+
+Selecting columns from bird breeding sites data
+```{r}
+bird_breeding_selected <- bird_breeding_sites |> select(Site, Longitude, Latitude) |> distinct() |> rename(Breeding_Longitude = Longitude, Breeding_Latitude = Latitude)
+
+gt(bird_breeding_selected)
+
+#Selecting only unique rows from the columns Site, Longitude and Latitude which have been renamed to be clearer
+```
+
+Selecting columns from bird migration sites data
+```{r}
+bird_migration_selected <- bird_migration_sites |>
+  select(
+    Site,
+    winterLongitude,
+    winterLatitude,
+    pslon,
+    pslat,
+    iblon,
+    iblat,
+    awestlon,
+    awestlat
+  ) |>
+  distinct() |>
+  rename(
+    Winter_Longitude = winterLongitude,
+    Winter_Latitude = winterLatitude,
+    Stopover_Longitude = pslon,
+    Stopover_Latitude = pslat,
+    Iberian_Longitude = iblon,
+    Iberian_Latitude = iblat,
+    Westmost_Longitude = awestlon,
+    Westmost_Latitude = awestlat
+  )
+
+gt(head(bird_migration_selected))
+
+#Same as above for bird migration sites
+```
+
+Filtering data frames
+```{r}
+bird_breeding_exc <- bird_breeding_selected |>
+  filter(Site != "Spain")
+
+gt(bird_breeding_exc)
+
+bird_migration_exc <- bird_migration_selected |>
+  filter(Site != "Spain")
+
+gt(head(bird_migration_exc))
+```
+
