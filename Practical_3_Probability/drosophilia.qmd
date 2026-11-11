@@ -1,0 +1,91 @@
+---
+title: "drosophilia.qmd"
+---
+```{r}
+library(tidyverse)
+library(gt)
+set.seed(42)
+
+#Read csv file, summarise data and plot
+dcounts <- read_csv("data/drosophila_counts.csv")
+dros_summary <- dcounts |> summarise(total_nm = sum(Novel_Mutation_Count), max_nm = max(Novel_Mutation_Count), mean_nm = mean(Novel_Mutation_Count), variance_nm = var(Novel_Mutation_Count))
+gt(dros_summary)
+ggplot(dcounts, aes(x = Novel_Mutation_Count)) + geom_bar() + ggtitle("Number of Populations with Each Mutation Count - Observed") + xlab("Novel mutation count") + ylab("Number of populations") + theme_minimal()
+
+#Plotting the theoretical distribution
+# Find the maximum observed value of k
+max_k <- dros_summary |> pull(max_nm)
+
+# Make a sequence of numbers from 0
+# to the observed maximum k
+possible_ks <- seq(0, max_k)
+
+# Extract the sample mean from the summary data frame
+sample_mean <- dros_summary |> pull(mean_nm)
+
+# Calculate the theoretical distribution
+all_theor_probs <- dpois(possible_ks,
+  lambda = sample_mean
+)
+n_populations <- 17
+all_theor_counts <- all_theor_probs * n_populations
+
+# Put the results in a data frame
+theor_df <- tibble(
+  k = possible_ks,
+  Theoretical_Mutation_Count = all_theor_counts
+)
+
+ggplot(data = dcounts, mapping = aes(x = Novel_Mutation_Count)) +
+  geom_bar(fill = "skyblue") +
+  geom_point(data = theor_df, mapping = aes(
+    x = k,
+    y = Theoretical_Mutation_Count
+  ), size = 3) +
+  ggtitle("Number of Populations with Each Mutation Count -\nObserved and Theoretical") +
+  xlab("Novel mutation count") +
+  ylab("Number of populations") +
+  theme_minimal()
+
+#Simulating mutation counts on chromosome 2R for 17 populations 1000 times
+mean_sim <- c()
+var_sim <- c()
+for (i in seq_len(1000)) {
+  # Use `rpois()` to simulate mutation counts for
+  # 17 populations
+  simulated_counts <- rpois(
+    n = n_populations,
+    lambda = sample_mean
+  )
+
+  # Take the mean and variance of the simulated counts
+  current_mean <- mean(simulated_counts)
+  current_var <- var(simulated_counts)
+
+  # Append these values to the `mean_sim` and `var_sim` vectors.
+  mean_sim <- c(mean_sim, current_mean)
+  var_sim <- c(var_sim, current_var)
+}
+
+#Create a dataframe for the simulated data
+df_sim <- tibble(
+  mean = mean_sim,
+  var = var_sim,
+  diff = abs(mean_sim - var_sim)
+)
+
+#Plot the difference between mean and variance as a histogram
+ggplot(df_sim, aes(x = diff)) + geom_histogram(bins = 50) + geom_vline(xintercept = sample_diff, color = "red") + ggtitle("Difference between mean and variance across samples - Simulated") +
+  xlab("Difference between mean and variance") +
+  ylab("Number of simulations") +
+  theme_minimal()
+
+#Calculate percentage of simulated samples in which the difference is greater than observed in the study
+sample_diff <- (dros_summary |> pull(variance_nm)) - (sample_mean)
+greater <- df_sim |> filter(diff > sample_diff)
+prop <- nrow(greater) / nrow(df_sim)
+print(prop)
+
+```
+
+
