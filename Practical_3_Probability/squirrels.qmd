@@ -1,0 +1,69 @@
+---
+title: "squirrels.qmd"
+---
+```{r}
+library(tidyverse)
+library(gt)
+library(cowsay)
+set.seed(42)
+
+#Display how many times a squirrel successfully raided a bird feeder
+attempts <- sample(c("Success","Failure"), size = 150, replace = TRUE, prob = c(0.3,0.7))
+n_successes <- sum(attempts == "Success")
+say(paste("I, Steve the Squirrel, successfully raided the bird feeder ", n_successes, " times!"), by = "squirrel")
+
+#Simulate for 1000 squirrels, table and plot
+combined_successes <- c()
+for (i in seq_len(1000)) {
+  is_success <- sample(c("SUCCESS", "FAILURE"),
+    size = 150,
+    replace = TRUE,
+    prob = c(0.3, 0.7)
+  )
+  n_successes <- sum(is_success == "SUCCESS")
+  combined_successes <- c(combined_successes, n_successes)
+}
+print(combined_successes)
+df_squirrels <- tibble("N_Successful_Heists" = combined_successes)
+gt(head(df_squirrels))
+
+ggplot(df_squirrels, aes(x = N_Successful_Heists)) + geom_bar() + ggtitle("Number of Successful Heists per Squirrel - Simulated") + xlab("Number of successful heists") + ylab("Number of squirrels") + theme_minimal()
+
+#Calculate probabiltiy of success for each value of k using binomial distribution
+probs <- c()
+for(k in seq(0, 150))
+{
+  prob_X_equals_k <- dbinom(k, 150, 0.3)
+  probs <- c(probs, prob_X_equals_k)
+}
+
+#Put probabilities into a dataframe and plot distribution function
+probability_dataframe <- tibble(N_Successful_Heists = seq(0, 150), Probability = probs)
+ggplot(probability_dataframe, aes(x = N_Successful_Heists, y = Probability)) + geom_col() + ggtitle("Binomial Distribution of Successful Heists - Theoretical") + xlab("Number of successful heists") + ylab("Probabiltiy") + theme_minimal()
+
+#Simulate 1000 datasets of 200 flowers with a 60% chance of being pollinated
+flowers <- rbinom(n = 1000, size = 200, prob = 0.6)
+enough_for_experiment <- sum(flowers >= 125)
+probability_success <- enough_for_experiment/1000
+print(probability_success)
+
+#Check answer using pbinom()
+probability_enough <- 1 - pbinom(124, 200, 0.6)
+print(probability_enough)
+
+#Find number of flowers needed for 95% probability of having enough pollinated flowers
+probs2 <- c()
+for(i in seq(200,250))
+{
+  prob_125_or_over <- 1 - pbinom(124, i, 0.6)
+  probs2 <- c(probs2, prob_125_or_over)
+}
+probs_df <- tibble(npicked = seq(200,250), psuccess = probs2)
+#Filter for rows where probability of success is >95%
+probs_df_filt <- probs_df |> filter(psuccess >= 0.95)
+gt(probs_df_filt)
+#Conclusion: she needs to pick 228 flowers
+```
+
+
+
