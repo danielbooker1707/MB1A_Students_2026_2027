@@ -62,5 +62,211 @@ gt(absent)
 #Draw a box plot to show this data
 ggplot(ht_df, aes(x = min_temp_coldest_month, y = detected, fill = detected)) + geom_boxplot() + ggtitle("Minimum Temperature with and without H. tumulorum") + xlab("Minimum temperature (°C)") + ylab("Presence of H. tumulorum") + theme_minimal()
 ```
+```{r}
+#Running a t-test
+ttest_ht_temp <- t.test(min_temp_coldest_month ~ detected, data = ht_temp_df, var.equal = TRUE)
+print(ttest_ht_temp)
+
+#Simulating the t-distribution
+#First, simulate 1000 observations with 74 degrees of freedom
+df74 <- rt(1000, df = 74)
+
+#Create a data frame where this set of observations forms a column
+t_dist <- tibble(simulated = df74)
+
+#Plot results
+ggplot(
+  t_dist,
+  aes(x = simulated)
+) +
+  geom_density() +
+  geom_vline(
+    xintercept = c(
+      ttest_ht_temp$statistic,
+      -ttest_ht_temp$statistic
+    ),
+    color = "red"
+  ) +
+  ggtitle("Density of t-distribution - Simulated and Observed") +
+  xlab("t") +
+  ylab("Density") +
+  theme_minimal()
+
+#Calculate an approximated p-value - proportion of observations which are at least 5.726 from 0 in either direction
+p_lower_sim <- sum(t_dist$simulated <= ttest_ht_temp$statistic) #ttest_ht_temp$statistic extracts the test statistic from the t-test 
+p_upper_sim <- sum(t_dist$simulated >= -ttest_ht_temp$statistic)
+
+p_sim <- (p_lower_sim + p_upper_sim) / nrow(t_dist)
+
+print(p_sim) #p-value is 0 with 1000 observations
+
+#Calculate the probability of getting a value which is not 0 given p-value = 2.07e-07
+prob_no_extreme <- (1 - ttest_ht_temp$p.value)^1000
+prob_at_least_one <- 1 - prob_no_extreme
+
+print(prob_at_least_one)
+
+#Calculate exact p-value using t-distribution cumulative probability function pt()
+p_lower <- pt(ttest_ht_temp$statistic, 74)
+p_upper <- 1 - pt(-ttest_ht_temp$statistic, 74)
+
+pval <- p_lower + p_upper
+
+print(pval) #This is the exact p-value calculated in out t-test
+
+#Simulating confidence intervals
+# Find the real difference for comparison
+true_diff <- pull(present, mean) - pull(absent, mean)
+
+# Vector to store the results
+res_vec <- c()
+
+for (i in seq_len(1000)) {
+  # Simulate the two samples
+  sample_present <- rnorm(pull(present, count), mean = pull(present, mean), sd = pull(present, sd))
+  sample_absent <- rnorm(pull(absent, count), mean = pull(absent, mean), sd = pull(absent, sd))
+
+  # Put the results into a data frame
+  df <- tibble(
+    sample = c(
+      rep("sample_1", length(sample_present)),
+      rep("sample_2", length(sample_absent))
+    ),
+    min_temp_coldest_month = c(sample_present, sample_absent)
+  )
+
+  # Run the t-test
+  ttest_res <- t.test(min_temp_coldest_month ~ sample,
+    data = df,
+    var.equal = TRUE
+  )
+
+  # Extract the confidence interval
+  ci_lower <- ttest_res$conf.int[1]
+  ci_upper <- ttest_res$conf.int[2]
+
+  # Check if the result is in the confidence interval or not
+  res_in_ci <- between(true_diff, ci_lower, ci_upper)
+
+  # Store the result
+  res_vec <- c(res_vec, res_in_ci)
+}
+
+#Percentage of confidence intervals that contain the true difference
+perc <- (sum(res_vec)/length(res_vec))*100
+print(perc)
+#In this simulation, the 95% confidence interval contained the true difference between the population means 94% of the time. This is close to the expected 95%, illustrating that when we repeatedly sample from a population and calculate a 95% confidence interval, approximately 95% of those intervals contain the true population value.
+
+#Calculating confidence intervals using simulated t-distribution
+#Plot simulated t-distribution
+ggplot(
+  t_dist,
+  aes(x = simulated)
+) +
+  geom_density() +
+  ggtitle("Density of t-distribution - Simulated") +
+  xlab("t") +
+  ylab("Density")
+
+#Find middle 95%
+quantile_df <- t_dist |>
+  summarise(
+    lower = quantile(simulated, 0.025),
+    upper = quantile(simulated, 0.975)
+  )
+gt(quantile_df)
+
+#Add to density plot
+ggplot(
+  t_dist,
+  aes(x = simulated)
+) +
+  geom_density() +
+  geom_vline(xintercept = c(pull(quantile_df, lower), pull(quantile_df, upper)), color = "blue") +
+  ggtitle("Density of t-distribution -\nSimulated with simulated quantiles") +
+  xlab("t") +
+  ylab("Density") +
+  theme_minimal()
+
+#Calculate exact values using the cumulative distribution function qt()
+lower_exact <- qt(0.025, 74)
+upper_exact <- qt(0.975, 74)
+print(lower_exact)
+print(upper_exact)
+
+#Plot exact values to show that their absolute values are identical as the t-distribution is symmetric
+ggplot(
+  t_dist,
+  aes(x = simulated)
+) +
+  geom_density() +
+  geom_vline(xintercept = c(lower_exact, upper_exact), color = "orange") +
+  ggtitle("Density of t-distribution -\nSimulated with theoretical quantiles") +
+  xlab("t") +
+  ylab("Density") +
+  theme_minimal()
+#This absolute value is the critical t value or t-star
+
+#Multiply t-star by the standard error of the t-test to convert t-star into the units of the response variable
+tstar <- upper_exact
+SE <- ttest_ht_temp$stderr
+confint_rv_units <- tstar * SE
+print(confint_rv_units)
+#This tells us how far we need to go above and below our estimated difference between means to obtain 95% confidence interval
+diff_means <- pull(absent, mean) - pull(present, mean)
+lower_cint <- diff_means - confint_rv_units
+upper_cint <- diff_means + confint_rv_units
+print(c(lower_cint, upper_cint))
+#This gives us our lower value of -1.7011 and upper value of -0.8228 as above.
+```
+```{r}
+#Create the linear model for the data
+lm_ht <- lm(min_temp_coldest_month ~ detected, data = ht_temp_df)
+
+#Summarise the linear model
+summ_lm_ht <- summary(lm_ht)
+print(summ_lm_ht)
+
+#Print confidence interval for the slope of the line in the linear model
+ci <- confint(lm_ht)
+print(ci)
+#This is identical to out t-test values above
+#Conclusion: There is evidence that minimum temperature differs according to the presence or absence of H. tumulorum (𝛽 = 1.26°C, 95% CI [0.82, 1.7]°C, 𝑡(74) = 5.73, 𝑝 = 2.07e-07, 𝑅2 = 0.307). Sites where H. tumulorum is present have a mean minimum temperature approximately 1.26°C higher than sites where it is absent. The model explains approximately 30.7% of the variation in minimum temperature.
+
+#Visualising our linear model
+ht_temp_df <- ht_temp_df |>
+  mutate(detected_num = as.numeric(detected))
+
+overall_mean <- ht_temp_df |>
+  pull(min_temp_coldest_month) |>
+  mean()
+
+ggplot(ht_temp_df, aes(
+  x = detected_num,
+  y = min_temp_coldest_month
+)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_hline(aes(yintercept = overall_mean), color = "red") +
+  ggtitle("Minimum temperature vs H. tumulorum detection - Observed and Fitted") +
+  xlab("H. tumulorum detected") +
+  ylab("Minimum temperature (°C)") +
+  theme_minimal()
+
+#Run an ANOVA on this linear model
+anova_lm <- anova(lm_ht)
+print(anova_lm)
+#Same linear model so by definition same confidence interval and hence identical p-value
+
+#Proportion of variance explained by the model relative to the variance of the response variable using sums of squares in the ANOVA output
+SS_model <- anova_lm["detected", "Sum Sq"]
+SS_res <- anova_lm["Residuals", "Sum Sq"]
+prop_var <- SS_model / (SS_res + SS_model)
+print(prop_var) # This is the same as R^2 in the linear model above
+#Conclusion: There is evidence that minimum temperature in the coldest month differs between sites where H. tumulorum is present and sites where it is absent (𝐹(1, 74) = 32.79, 𝑝 = 2.07e-07, 𝑅2 = 0.307). The model explains approximately 30.7% of the variation in minimum temperature in the coldest month.
+```
+
+
+
 
 
