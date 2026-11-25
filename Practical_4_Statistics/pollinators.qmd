@@ -1,0 +1,66 @@
+---
+title: "pollinators.qmd"
+---
+```{r}
+library(tidyverse)
+library(gt)
+set.seed(42)
+
+#Read CSV files
+insect_counts <- read_csv("data/insect_counts.csv")
+flower_counts <- read_csv("data/flower_counts.csv")
+site_metadata <- read_csv("data/site_metadata.csv")
+
+#Number of unique sites
+site_count <- nrow(site_metadata)
+print(site_count)
+
+#Count observations of insects
+total_insects_observed <- insect_counts |> pull(n_observed) |> sum()
+print(total_insects_observed)
+
+#Observations for each insect species
+insect_totals <- insect_counts |> group_by(species) |> summarise(n_obs = sum(n_observed))
+insect_totals <- insect_totals |> arrange(desc(n_obs))
+gt(head(insect_totals)) #Including 'head()' only takes the top 6 rows
+
+#Filter 'insect_counts' data frame to include only the counts for H. tumulorum
+ht_counts <- insect_counts |> filter(species == "Halictus tumulorum")
+gt(head(ht_counts))
+
+#Add column to show whether H. tumulorum detected at each site, then add to 'site_metadata' dataframe and write to 'ht_df' csv file
+ht_df <- ht_counts |> mutate(detected = n_observed > 0)
+ht_df <- ht_df |> inner_join(site_metadata)
+gt(head(ht_df))
+write_csv(ht_df, "output/ht_df.csv")
+
+#Select relevant columns to explore temperature relationship
+ht_temp_df <- ht_df |>
+  select(x1km_square, detected, min_temp_coldest_month)
+gt(head(ht_temp_df))
+
+#Calculate mean and standard deviation for number of observations for sites with and without H. tumulorum
+ht_temp_summ <- ht_temp_df |>
+  group_by(detected) |>
+  summarise(
+    mean = mean(min_temp_coldest_month),
+    sd = sd(min_temp_coldest_month),
+    count = n()
+  )
+
+# Separate present and absent sites
+present <- ht_temp_summ |>
+  filter(detected == TRUE)
+
+absent <- ht_temp_summ |>
+  filter(detected == FALSE)
+
+gt(ht_temp_summ)
+gt(present)
+gt(absent)
+
+#Draw a box plot to show this data
+ggplot(ht_df, aes(x = min_temp_coldest_month, y = detected, fill = detected)) + geom_boxplot() + ggtitle("Minimum Temperature with and without H. tumulorum") + xlab("Minimum temperature (°C)") + ylab("Presence of H. tumulorum") + theme_minimal()
+```
+
+
