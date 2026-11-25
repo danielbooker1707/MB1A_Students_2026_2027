@@ -265,6 +265,41 @@ prop_var <- SS_model / (SS_res + SS_model)
 print(prop_var) # This is the same as R^2 in the linear model above
 #Conclusion: There is evidence that minimum temperature in the coldest month differs between sites where H. tumulorum is present and sites where it is absent (𝐹(1, 74) = 32.79, 𝑝 = 2.07e-07, 𝑅2 = 0.307). The model explains approximately 30.7% of the variation in minimum temperature in the coldest month.
 ```
+```{r}
+#Plot a box plot to show mean insect mass at sites dominated by different insect families
+ggplot(site_metadata, aes(x= dominant_family, y = mean_insect_mass, fill = dominant_family)) + geom_boxplot() + ggtitle("Mean insect mass at sites dominated by different insect families - Observed") + xlab("Insect Family") + ylab("Mean insect mass (g)") + theme_minimal()
+
+#Create a linear model for the association between mean insect mass and dominant family
+lm_mass_domfam <- lm(mean_insect_mass ~ dominant_family, data = site_metadata)
+summary(lm_mass_domfam)
+
+#Run an ANOVA on this linear model
+anova_mass_domfam <- anova(lm_mass_domfam)
+print(anova_mass_domfam)
+#Conclusion: There is evidence that mean insect mass differs among dominant insect families (𝐹(3, 72) = 14.72, 𝑝 = 0.00000014), 𝑅2 = 0.38). Dominant insect family explains approximately 38% of the variation in mean insect mass among sites.
+
+#Simulating an F distribution
+#First, sample 1000 observations with 3 numerator degrres of freedom and 72 denominator degrees of freedom and store as a column in a dataframe
+df_3_72 <- rf(n = 1000, df1 = 3, df2 = 72)
+f_dist <- tibble(simulated = df_3_72)
+
+#Plot the F-distribution
+fstat <- anova_mass_domfam["dominant_family", "F value"]
+ggplot(f_dist, aes(x = simulated)) + geom_density() + geom_vline(xintercept = fstat, color = "red") + ggtitle("Density of F-distribution - Simulated and Observed") + xlab("F") + ylab("Density") + theme_minimal()
+
+#Calculate an approximate p-value from simulated data - proportion of simulated F-values greater than or equal to F-statistic calculated from the data (14.72)
+p_above_sim <- sum(f_dist$simulated >= fstat)
+p_sim <- p_above_sim / nrow(f_dist)
+print(p_sim) #As previously, value is 0 at such a low p-value and 1000 simulations
+
+#Calculate the exact p-value using the F-distribution cumulative probability function pf()
+p_below <- pf(fstat, 3, 72)
+p_exact <- 1 - p_below
+print(p_exact) #Exact p-value calculated by ANOVA
+```
+
+
+
 
 
 
